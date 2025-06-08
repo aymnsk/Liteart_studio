@@ -2,7 +2,6 @@ import torch
 from diffusers import StableDiffusionPipeline
 from PIL import Image
 
-# Load model once (cached)
 pipe = None
 
 def load_model():
@@ -12,8 +11,7 @@ def load_model():
             "runwayml/stable-diffusion-v1-5",
             torch_dtype=torch.float32,
             safety_checker=None,
-            revision="fp16",
-            use_auth_token=False,
+            revision="fp16"
         )
         pipe = pipe.to("cpu")
 
