@@ -6,23 +6,20 @@ import os
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# TransformerNet model definition
+# --- TransformerNet model ---
 class TransformerNet(nn.Module):
     def __init__(self):
         super(TransformerNet, self).__init__()
-        # Conv Layers
         self.conv1 = ConvLayer(3, 32, kernel_size=9, stride=1)
         self.conv2 = ConvLayer(32, 64, kernel_size=3, stride=2)
         self.conv3 = ConvLayer(64, 128, kernel_size=3, stride=2)
 
-        # Residual Layers
         self.res1 = ResidualBlock(128)
         self.res2 = ResidualBlock(128)
         self.res3 = ResidualBlock(128)
         self.res4 = ResidualBlock(128)
         self.res5 = ResidualBlock(128)
 
-        # Upsampling Layers
         self.deconv1 = UpsampleConvLayer(128, 64, kernel_size=3, stride=1, upsample=2)
         self.deconv2 = UpsampleConvLayer(64, 32, kernel_size=3, stride=1, upsample=2)
         self.deconv3 = ConvLayer(32, 3, kernel_size=9, stride=1)
@@ -33,17 +30,19 @@ class TransformerNet(nn.Module):
         y = self.relu(self.conv1(x))
         y = self.relu(self.conv2(y))
         y = self.relu(self.conv3(y))
+
         y = self.res1(y)
         y = self.res2(y)
         y = self.res3(y)
         y = self.res4(y)
         y = self.res5(y)
+
         y = self.relu(self.deconv1(y))
         y = self.relu(self.deconv2(y))
         y = self.deconv3(y)
         return y
 
-
+# --- Helper layers ---
 class ConvLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride):
         super(ConvLayer, self).__init__()
@@ -55,7 +54,6 @@ class ConvLayer(nn.Module):
         out = self.reflection_pad(x)
         out = self.conv2d(out)
         return out
-
 
 class ResidualBlock(nn.Module):
     def __init__(self, channels):
@@ -73,7 +71,6 @@ class ResidualBlock(nn.Module):
         out = out + residual
         return out
 
-
 class UpsampleConvLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, upsample=None):
         super(UpsampleConvLayer, self).__init__()
@@ -89,26 +86,22 @@ class UpsampleConvLayer(nn.Module):
         out = self.conv2d(out)
         return out
 
-
-def load_model(style_name="mosaic_n16"):
+# --- Load Model ---
+def load_model(style_name="mosaic"):
     model_path = os.path.join("models", f"{style_name}.pth")
     model = TransformerNet()
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device).eval()
     return model
 
-
-def apply_style_transfer(content_img, _, style_name="mosaic_n16"):
-    """
-    content_img: PIL Image
-    style_name: one of "mosaic_n16", "candy_n16", "rain_princess_n16", "udnie_n16"
-    """
+# --- Apply Style Transfer ---
+def apply_style_transfer(content_img, _, style_name="mosaic"):
     model = load_model(style_name)
 
     preprocess = transforms.Compose([
         transforms.Resize(512),
         transforms.ToTensor(),
-        transforms.Lambda(lambda x: x[:3, :, :]),  # keep 3 channels
+        transforms.Lambda(lambda x: x[:3, :, :]),
         transforms.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
     ])
@@ -124,5 +117,4 @@ def apply_style_transfer(content_img, _, style_name="mosaic_n16"):
     with torch.no_grad():
         output_tensor = model(content_tensor).cpu().squeeze(0)
     output_img = postprocess(output_tensor)
-
     return output_img
