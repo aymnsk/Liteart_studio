@@ -1,12 +1,7 @@
 streamlit
 torch==2.1.0
 torchvision
-diffusers==0.27.2
-transformers
-accelerate
-safetensors
 scipy
 pillow
 opencv-python-headless==4.7.0.72
 tensorflow-cpu==2.13.0
-huggingface-hub>=0.15.1
