@@ -20,7 +20,6 @@ class ResidualBlock(nn.Module):
     def __init__(self, channels):
         super().__init__()
         self.conv1 = ConvLayer(channels, channels, kernel_size=3, stride=1)
-        # Important: track_running_stats=True to match .pth files
         self.in1 = nn.InstanceNorm2d(channels, affine=True, track_running_stats=True)
         self.conv2 = ConvLayer(channels, channels, kernel_size=3, stride=1)
         self.in2 = nn.InstanceNorm2d(channels, affine=True, track_running_stats=True)
@@ -82,15 +81,19 @@ class TransformerNet(nn.Module):
         y = self.deconv3(y)
         return y
 
+# Cache loaded models for faster repeated use
+_loaded_models = {}
+
 def load_model(style_name):
+    if style_name in _loaded_models:
+        return _loaded_models[style_name]
+    
     model_path = os.path.join("models", f"{style_name}.pth")
     model = TransformerNet()
     state_dict = torch.load(model_path, map_location=device)
-    
-    # Remove incompatible keys (running stats in InstanceNorm with track_running_stats=False)
-    # But since we set track_running_stats=True, we should be fine.
     model.load_state_dict(state_dict)
     model.to(device).eval()
+    _loaded_models[style_name] = model
     return model
 
 def apply_style_transfer(content_img, style_name="mosaic"):
@@ -98,13 +101,9 @@ def apply_style_transfer(content_img, style_name="mosaic"):
         transforms.Resize(512),
         transforms.ToTensor(),
         transforms.Lambda(lambda x: x[:3]),  # Ensure 3 channels only
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                             std=[0.229, 0.224, 0.225]),
     ])
 
     postprocess = transforms.Compose([
-        transforms.Normalize(mean=[-2.118, -2.036, -1.804],
-                             std=[4.367, 4.464, 4.444]),
         transforms.Lambda(lambda x: torch.clamp(x, 0, 1)),
         transforms.ToPILImage(),
     ])
