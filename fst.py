@@ -90,9 +90,14 @@ class UpsampleConvLayer(nn.Module):
 def load_model(style_name="mosaic"):
     model_path = os.path.join("models", f"{style_name}.pth")
     model = TransformerNet()
-    model.load_state_dict(torch.load(model_path, map_location=device))
+
+    # Load checkpoint with strict=False to ignore unexpected keys
+    checkpoint = torch.load(model_path, map_location=device)
+    model.load_state_dict(checkpoint, strict=False)
+
     model.to(device).eval()
     return model
+
 
 # --- Apply Style Transfer ---
 def apply_style_transfer(content_img, _, style_name="mosaic"):
