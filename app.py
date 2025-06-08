@@ -1,7 +1,9 @@
-
 import streamlit as st
 from PIL import Image
-from utils import fst, deepdream, cartoon, sd
+import fst
+import deepdream
+import cartoon
+import sd
 
 st.set_page_config(page_title="🎨 LiteArt Studio", layout="centered")
 st.title("🎨 LiteArt Studio - Offline AI Art Tools")
