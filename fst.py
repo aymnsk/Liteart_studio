@@ -1,0 +1,1 @@
+# def apply_fst(image): return image
