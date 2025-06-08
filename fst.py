@@ -17,12 +17,17 @@ class ConvLayer(nn.Module):
         return self.conv2d(self.reflection_pad(x))
 
 class ResidualBlock(nn.Module):
-    def __init__(self, channels):
+    def __init__(self, channels, block_num):
         super().__init__()
         self.conv1 = ConvLayer(channels, channels, kernel_size=3, stride=1)
         self.in1 = nn.InstanceNorm2d(channels, affine=True, track_running_stats=True)
         self.conv2 = ConvLayer(channels, channels, kernel_size=3, stride=1)
         self.in2 = nn.InstanceNorm2d(channels, affine=True, track_running_stats=True)
+
+        # Name instance norms for state_dict compatibility
+        setattr(self, f"in{block_num}", self.in1)
+        setattr(self, f"in{block_num + 1}", self.in2)
+
         self.relu = nn.ReLU()
 
     def forward(self, x):
@@ -55,11 +60,11 @@ class TransformerNet(nn.Module):
         self.in2 = nn.InstanceNorm2d(64, affine=True, track_running_stats=True)
         self.in3 = nn.InstanceNorm2d(128, affine=True, track_running_stats=True)
 
-        self.res1 = ResidualBlock(128)
-        self.res2 = ResidualBlock(128)
-        self.res3 = ResidualBlock(128)
-        self.res4 = ResidualBlock(128)
-        self.res5 = ResidualBlock(128)
+        self.res1 = ResidualBlock(128, block_num=4)
+        self.res2 = ResidualBlock(128, block_num=6)
+        self.res3 = ResidualBlock(128, block_num=8)
+        self.res4 = ResidualBlock(128, block_num=10)
+        self.res5 = ResidualBlock(128, block_num=12)
 
         self.deconv1 = UpsampleConvLayer(128, 64, kernel_size=3, stride=1, upsample=2)
         self.deconv2 = UpsampleConvLayer(64, 32, kernel_size=3, stride=1, upsample=2)
@@ -81,19 +86,14 @@ class TransformerNet(nn.Module):
         y = self.deconv3(y)
         return y
 
-# Cache loaded models for faster repeated use
-_loaded_models = {}
-
 def load_model(style_name):
-    if style_name in _loaded_models:
-        return _loaded_models[style_name]
-    
     model_path = os.path.join("models", f"{style_name}.pth")
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model file not found: {model_path}")
     model = TransformerNet()
     state_dict = torch.load(model_path, map_location=device)
     model.load_state_dict(state_dict)
     model.to(device).eval()
-    _loaded_models[style_name] = model
     return model
 
 def apply_style_transfer(content_img, style_name="mosaic"):
@@ -101,18 +101,22 @@ def apply_style_transfer(content_img, style_name="mosaic"):
         transforms.Resize(512),
         transforms.ToTensor(),
         transforms.Lambda(lambda x: x[:3]),  # Ensure 3 channels only
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225]),
     ])
 
     postprocess = transforms.Compose([
+        transforms.Normalize(mean=[-2.118, -2.036, -1.804],
+                             std=[4.367, 4.464, 4.444]),
         transforms.Lambda(lambda x: torch.clamp(x, 0, 1)),
         transforms.ToPILImage(),
     ])
 
     model = load_model(style_name)
-
     content_tensor = preprocess(content_img).unsqueeze(0).to(device)
+
     with torch.no_grad():
         output_tensor = model(content_tensor).cpu().squeeze(0)
-    output_img = postprocess(output_tensor)
 
+    output_img = postprocess(output_tensor)
     return output_img
