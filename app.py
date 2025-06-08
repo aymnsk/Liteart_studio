@@ -1,36 +1,43 @@
 import streamlit as st
 from PIL import Image
-import fst
-import cartoon
-import deepdream
+import io
 
-st.set_page_config(page_title="LiteArt Studio", layout="centered")
+from fst import apply_style_transfer
+
+# Set Streamlit page config
+st.set_page_config(page_title="🎨 LiteArt Studio - Fast Style Transfer", layout="centered")
+
 st.title("🎨 LiteArt Studio")
+st.subheader("Transform your image with AI-powered Fast Style Transfer")
 
-style_choices = ["mosaic_n16", "candy_n16", "rain_princess_n16", "udnie_n16"]
-mode = st.sidebar.selectbox("Mode", ["Fast Style Transfer"] + ["Cartoonize", "DeepDream"])
-style_choice = None
-if mode == "Fast Style Transfer":
-    style_choice = st.sidebar.selectbox("Style", style_choices)
+# Style options
+style_options = {
+    "Mosaic": "mosaic",
+    "Candy": "candy",
+    "Udnie": "udnie",
+    "Rain Princess": "rain_princess"
+}
 
-uploaded = st.file_uploader("Upload Image", type=["jpg","jpeg","png"])
-if uploaded:
-    img = Image.open(uploaded).convert("RGB")
-    st.image(img, caption="Original", use_container_width=True)
-    output = None
+style_choice = st.selectbox("Choose a Style", list(style_options.keys()))
 
-    if st.button("Run"):
-        with st.spinner("Processing..."):
-            if mode == "Fast Style Transfer":
-                try:
-                    output = fst.apply_style_transfer(img, None, style_name=style_choice)
-                except Exception as e:
-                    st.error(f"Error: {e}")
-            elif mode == "Cartoonize":
-                output = cartoon.apply_cartoon(img)
-            elif mode == "DeepDream":
-                output = deepdream.apply_deepdream(img)
-            
-            if output:
-                st.image(output, caption="Output", use_container_width=True)
-                st.download_button("Download", data=output.tobytes(), file_name="output.png", mime="image/png")
+uploaded_file = st.file_uploader("Upload an Image", type=["jpg", "jpeg", "png"])
+
+if uploaded_file is not None:
+    # Show original image
+    content_img = Image.open(uploaded_file).convert("RGB")
+    st.image(content_img, caption="Original Image", use_column_width=True)
+
+    # Button to apply style
+    if st.button("🎨 Stylize"):
+        with st.spinner("Applying style... Please wait"):
+            output_img = apply_style_transfer(content_img, None, style_name=f"{style_options[style_choice]}")
+            st.image(output_img, caption=f"Stylized with {style_choice}", use_column_width=True)
+
+            # Download button
+            buf = io.BytesIO()
+            output_img.save(buf, format="PNG")
+            byte_im = buf.getvalue()
+            st.download_button(label="📥 Download Stylized Image",
+                               data=byte_im,
+                               file_name=f"{style_choice.lower()}_styled.png",
+                               mime="image/png")
