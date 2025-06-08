@@ -1,20 +1,23 @@
-from diffusers import StableDiffusionPipeline
 import torch
+from diffusers import StableDiffusionPipeline
 from PIL import Image
 
+# Load model once (cached)
 pipe = None
 
-def load_sd_model():
+def load_model():
     global pipe
     if pipe is None:
         pipe = StableDiffusionPipeline.from_pretrained(
-            "CompVis/stable-diffusion-v1-4",
+            "runwayml/stable-diffusion-v1-5",
             torch_dtype=torch.float32,
-            revision="fp32",
+            safety_checker=None,
+            revision="fp16",
+            use_auth_token=False,
         )
         pipe = pipe.to("cpu")
-    return pipe
 
-def generate_image(pipe, prompt):
-    image = pipe(prompt).images[0]
+def generate_image(prompt: str) -> Image.Image:
+    load_model()
+    image = pipe(prompt, num_inference_steps=25, guidance_scale=7.5).images[0]
     return image
