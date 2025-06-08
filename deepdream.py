@@ -1,9 +1,8 @@
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageFilter, ImageEnhance
 
-def apply_deepdream(image):
-    image = image.resize((512, 512))
-    image = image.filter(ImageFilter.DETAIL)
-    image = image.filter(ImageFilter.EDGE_ENHANCE)
-    enhancer = ImageEnhance.Contrast(image)
-    image = enhancer.enhance(1.5)
-    return image
+def apply_deepdream(img: Image.Image) -> Image.Image:
+    # Simple fake "deepdream" effect by enhancing edges and saturation
+    img = img.filter(ImageFilter.EDGE_ENHANCE_MORE)
+    enhancer = ImageEnhance.Color(img)
+    img = enhancer.enhance(1.8)
+    return img
